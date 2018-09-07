@@ -7,12 +7,18 @@
 #       Environment : Atollic TrueSTUDIO(R)
 #
 ###############################################################################
-
 SHELL						= cmd
 
+# -----------------------------------------------------------------------------
 DEBUG 					= 1
 TARGET					= fcu_f401_bootloader
 
+# -----------------------------------------------------------------------------
+USB_BULK             = 1
+USB_CDC              = 2
+USB_DEVICE           = USB_BULK
+
+# -----------------------------------------------------------------------------
 # System configuration
 CC 						= arm-atollic-eabi-gcc
 OBJCOPY 					= arm-atollic-eabi-objcopy
@@ -40,6 +46,13 @@ endif
 
 # C flags
 C_INCLUDE				:= -Iinc
+C_INCLUDE				+= -Isrc/common/inc
+ifeq ($(USB_DEVICE), $(USB_BULK))
+C_INCLUDE				+= -Isrc/usb/bulk/inc
+endif
+ifeq ($(USB_DEVICE), $(USB_CDC))
+C_INCLUDE				+= -Isrc/usb/cdc/inc
+endif
 C_INCLUDE				+= -IDrivers/STM32F4xx_HAL_Driver/Inc 
 C_INCLUDE				+= -IDrivers/STM32F4xx_HAL_Driver/Inc/Legacy
 C_INCLUDE				+= -IDrivers/CMSIS/Device/ST/STM32F4xx/Include
@@ -49,6 +62,12 @@ C_DEFS					:= -D__weak=__attribute__((weak))
 C_DEFS					+= -D__packed=__attribute__((__packed__))
 C_DEFS					+= -DUSE_HAL_DRIVER
 C_DEFS					+= -DSTM32F401xC
+ifeq ($(USB_DEVICE), $(USB_BULK))
+C_DEFS					+= -DSTM32F401_USB_BULK_DEVICE
+endif
+ifeq ($(USB_DEVICE), $(USB_CDC))
+C_DEFS					+= -DSTM32F401_USB_CDC_DEVICE
+endif
 
 CFLAGS					:=  $(MCU) $(C_INCLUDE) $(C_DEFS) $(OPT) -ffunction-sections -fdata-sections -fstack-usage -Wall -specs=nano.specs
 ifeq ($(DEBUG), 1)
@@ -74,15 +93,32 @@ SYSTEM_SOURCE			+= ./src/stm32f4xx_it.c
 SYSTEM_SOURCE			+= ./src/stm32f4xx_hal_msp.c
 
 # HAL Library Source
-HAL_LIBRARY_SOURCE 	:= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c	
-HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c	
-HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c	
-HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c	
-HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c	
-HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c	
+HAL_LIBRARY_SOURCE 	:= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c
+HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c
+HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c
+HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c
+HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c
+HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c
+HAL_LIBRARY_SOURCE 	+= ./Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c
 
 # User Source
 USER_SOURCE				:= ./src/main.c
+USER_SOURCE				+= ./src/common/src/printf.c
+USER_SOURCE				+= ./src/common/src/scheduler.c
+USER_SOURCE				+= ./src/common/src/uart_debug.c
+USER_SOURCE				+= ./src/common/src/battery_gauge.c
+USER_SOURCE				+= ./src/common/src/led.c
+ifeq ($(USB_DEVICE), $(USB_BULK))
+USER_SOURCE				+= ./src/usb/bulk/usb_bulk.c
+USER_SOURCE				+= ./src/usb/bulk/usb_bulk_device.c
+USER_SOURCE				+= ./src/usb/bulk/usbd_bulk_desc.c
+USER_SOURCE				+= ./src/usb/bulk/usbd_bulk_if.c
+USER_SOURCE				+= ./src/usb/bulk/usbd_conf.c
+endif
+ifeq ($(USB_DEVICE), $(USB_CDC))
+USER_SOURCE				+=
+endif
+
 
 SRC 						:= $(SYSTEM_SOURCE) $(HAL_LIBRARY_SOURCE) $(USER_SOURCE)
 
